@@ -2,6 +2,7 @@
 
 import os
 from pprint import pprint
+import subprocess
 
 class bspBuild(object):
 	"""docstring for bspBuild"""
@@ -9,8 +10,8 @@ class bspBuild(object):
 	platform = {
 		# Non-Windows
 		'posix': {
-			'steamdir': '~/.steam/steam/',
-			'steamcommon': '~/.steam/steam/SteamApps/common/',
+			'steamdir': os.path.expanduser('~/.steam/steam/'),
+			'steamcommon': os.path.expanduser('~/.steam/steam/SteamApps/common/'),
 			'binary': 'hl2_linux',
 			'copy': 'cp',
 		},
@@ -27,13 +28,13 @@ class bspBuild(object):
 		'Team Fortress 2': {
 			# 'game_folder': platform[os.name]['steamcommon'] + 'Team Fortress 2/',
 			'gamedir': platform[os.name]['steamcommon'] + 'Team Fortress 2/tf/',
-			'game': platform[os.name]['steamcommon'] + 'Team Fortress 2/tf/' + platform[os.name]['binary'],
+			'game': platform[os.name]['steamcommon'] + 'Team Fortress 2/' + platform[os.name]['binary'],
 			'bspdir': platform[os.name]['steamcommon'] + 'Team Fortress 2/tf/maps/',
 			'buildtools': {
 				'posix': {
-					'vbsp': 'lib/Team Fortress 2/bin/vbsp.exe',
-					'vvis': 'lib/Team Fortress 2/bin/vvis.exe',
-					'vrad': 'lib/Team Fortress 2/bin/vrad.exe',
+					'vbsp': os.path.abspath('./lib/Team Fortress 2/bin/vbsp.exe'),
+					'vvis': os.path.abspath('./lib/Team Fortress 2/bin/vvis.exe'),
+					'vrad': os.path.abspath('./lib/Team Fortress 2/bin/vrad.exe'),
 				},
 				'nt': {
 					'vbsp': platform['nt']['steamcommon'] + 'Team Fortress 2/bin/vbsp.exe',
@@ -46,7 +47,7 @@ class bspBuild(object):
 
 	build_presets = {
 		'vbsp': '%(vbsp)s -game %(gamedir)s %(path)s/%(file)s',
-		'copy': '%(copy)s %(path)s/%(file)s %(bspdir)s/%(file)s.bsp',
+		'copy': '%(copy)s %(path)s/%(file)s.bsp %(bspdir)s/%(file)s.bsp',
 		'game': '%(game)s -sw -w 1024 -h 768 -dev -console -allowdebug -game %(gamedir)s +map %(file)s',
 	}
 
@@ -90,7 +91,7 @@ class bspBuild(object):
 		super(bspBuild, this).__init__()
 		this.arg = arg[1:]
 		
-		pprint(this.arg)
+		# pprint(this.arg)
 		# Iterate over .vmf files
 		for vmf_file in [ elem for elem in this.arg if '.vmf' in elem ]:
 			this.build_vmf(vmf_file)
@@ -107,23 +108,31 @@ class bspBuild(object):
 		if vmf_file.endswith('.vmf'):
 			vmf_file = vmf_file[:-4]
 
-		head, tail = os.path.split(os.path.basename(os.path.abspath(vmf_file)))
+		vmf_path, vmf_file = os.path.split(os.path.abspath(vmf_file))
 
 		# Define variables avaiable in copy script
 		build_vars = {
 			'vbsp': this.game_config[game]['buildtools'][os.name]['vbsp'],
 			'vrad': this.game_config[game]['buildtools'][os.name]['vrad'],
 			'vvis': this.game_config[game]['buildtools'][os.name]['vvis'],
-			'file': head,
-			'path': tail,
+			'file': vmf_file,
+			'path': vmf_path,
 			'copy': this.platform[os.name]['copy'],
 			'game': this.game_config[game]['game'],
 			'gamedir': this.game_config[game]['gamedir'],
 			'bspdir': this.game_config[game]['bspdir'],
 		}
+		# pprint(build_vars)
 
 		for cmd in shell_out:
-			pprint(cmd % build_vars)
+			cmd = [li % build_vars for li in cmd.split()]
+			print('** Executing...')
+			print('** Command: ' + cmd[0])
+			print('** Parameters: ' + ' '.join('"' + li + '"' if os.path.exists(os.path.split(li)[0]) else li for li in cmd[1:]))
+			print('')
+			process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+			stdout, stderr = process.communicate()
+			print('')
 
 		#todo compute shaw1 of input & outpul fiels involved http://stackoverflow.com/questions/1869885/calculating-sha1-of-a-file
 		
